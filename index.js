@@ -1,36 +1,68 @@
 import express from "express";
+import bodyParser from "body-parser";
+import fs from "fs";
+import path from "path";
+import { dirname } from "path";
+import { fileURLToPath } from "url";
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 const app = express();
 const port = 3000;
 
-// *********************
-// Let’s practice using Postman. Make sure your server is running with nodemon.
-// Then test the 5 different routes below with Postman. Open a separate tab for each request.
-// Check that for each route you’re getting the correct status code returned to you from your server.
-// You should not get any 404s or 500 status codes.
-// *********************
+const blogFilePath = path.join(__dirname, "blog.json");
+
+// Initialize blog variable (empty initially)
+let blog = "";
+
+// Middleware to serve static files
+app.use(express.static("public"));
+
+app.use(bodyParser.urlencoded({ extended: true }));
+
+const loadBlog = () => {
+  if (fs.existsSync(blogFilePath)) {
+    const fileContent = fs.readFileSync(blogFilePath, "utf-8");
+    blog = fileContent ? JSON.parse(fileContent).blog : "";
+  }
+};
+
+const saveBlog = (blogContent) => {
+  const blogData = JSON.stringify({ blog: blogContent });
+  fs.writeFileSync(blogFilePath, blogData, "utf-8");
+};
 
 app.get("/", (req, res) => {
-  res.send("<h1>Home Page</h1>");
+  loadBlog(); // Ensure we load the latest blog content
+  res.render("index.ejs", { blog: blog });
 });
 
-app.post("/register", (req, res) => {
-  //Do something with the data
-  res.sendStatus(201);
+app.get("/write", (req, res) => {
+  res.render("writeBlog.ejs");
 });
 
-app.put("/user/trupti", (req, res) => {
-  res.sendStatus(200);
+app.post("/submit", (req, res) => {
+  blog = req.body["blog"]; 
+  console.log("Blog Content:", blog);
+  
+  saveBlog(blog);
+
+  res.redirect("/myBlog"); 
 });
 
-app.patch("/user/trupti", (req, res) => {
-  res.sendStatus(200);
+app.get("/myBlog", (req, res) => {
+  loadBlog();
+  res.render("myBlog.ejs", { blog: blog });
 });
 
-app.delete("/user/trupti", (req, res) => {
-  //Deleting
-  res.sendStatus(200);
+app.post("/reset", (req, res) => {
+  blog = "";
+  console.log("Blog content reset successfully!");
+  saveBlog(blog); // Save the empty blog to the file
+
+  res.render("myBlog.ejs", { blog: blog });
 });
 
+/* Start the server */
 app.listen(port, () => {
-  console.log(`Server started on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });
